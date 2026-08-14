@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Profile</title>
+    <style>
+        body{
+            font-family: Segoe UI, Helvetica, Arial, sans-serif;
+            background-color: #ffffff;
+            color: #1f2328;
+            max-width: 780px;
+            margin: 40px auto;
+            padding: 0 16px;
+            line-height: 1.5;
+        }
+        form{
+            margin-bottom: 24px;
+        }
+        input{
+            padding: 6px 10px;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            width: 220px;
+            font-size: 14px;
+        }
+        button{
+            padding: 6px 14px;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            background-color: #f6f8fa;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover{
+            background-color: #eef1f4;
+        }
+        .top{
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        .top img{
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            border: 1px solid #d0d7de;
+        }
+        h2{
+            margin: 0;
+        }
+        .login{
+            color: #59636e;
+            font-size: 18px;
+        }
+        .bio{
+            margin-top: 6px;
+        }
+        .meta{
+            font-size: 14px;
+            color: #59636e;
+            margin-top: 10px;
+        }
+        .meta span{
+            margin-right: 16px;
+        }
+        .counts{
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        .counts b{
+            color: #1f2328;
+        }
+        h3{
+            border-bottom: 1px solid #d0d7de;
+            padding-bottom: 6px;
+            font-size: 16px;
+        }
+        .repo{
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            padding: 12px 14px;
+            margin-bottom: 10px;
+        }
+        .repo a{
+            color: #0969da;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .repo a:hover{
+            text-decoration: underline;
+        }
+        .repo p{
+            margin: 6px 0 0 0;
+            font-size: 14px;
+            color: #59636e;
+        }
+        .lang{
+            font-size: 12px;
+            color: #59636e;
+            margin-top: 8px;
+        }
+        .msg{
+            color: #59636e;
+        }
+    </style>
+</head>
+<body>
+    <form id="searchForm">
+        <input type="text" id="user" placeholder="github username">
+        <button type="submit">Search</button>
+    </form>
+
+    <div id="profile" class="msg">Loading...</div>
+
+    <h3>Repositories</h3>
+    <div id="repos"></div>
+
+    <script>
+        // github account signed in on this pc
+        const DEFAULT_USER = "Gauravlightnin95";
+
+        const profileBox = document.getElementById("profile");
+        const repoBox = document.getElementById("repos");
+        const form = document.getElementById("searchForm");
+        const input = document.getElementById("user");
+
+        async function loadProfile(name){
+            profileBox.innerHTML = "Loading...";
+            repoBox.innerHTML = "";
+            try{
+                const res = await fetch("https://api.github.com/users/" + name);
+                if(!res.ok){
+                    if(res.status == 404){
+                        profileBox.innerHTML = "User not found";
+                    }
+                    else if(res.status == 403 || res.status == 429){
+                        // github allows only 60 requests per hour without a token
+                        const reset = res.headers.get("x-ratelimit-reset");
+                        const time = reset ? new Date(reset * 1000).toLocaleTimeString() : "";
+                        profileBox.innerHTML = "GitHub API rate limit reached" +
+                            (time ? " - try again after " + time : "");
+                    }
+                    else{
+                        profileBox.innerHTML = "Could not load profile (" + res.status + ")";
+                    }
+                    return;
+                }
+                const data = await res.json();
+                console.log(data);
+
+                profileBox.className = "";
+                profileBox.innerHTML = `
+                    <div class="top">
+                        <img src="${data.avatar_url}" alt="avatar">
+                        <div>
+                            <h2>${data.name || data.login}</h2>
+                            <div class="login">${data.login}</div>
+                            <div class="bio">${data.bio || ""}</div>
+                            <div class="meta">
+                                ${data.company ? "<span>" + data.company + "</span>" : ""}
+                                ${data.location ? "<span>" + data.location + "</span>" : ""}
+                                ${data.blog ? '<span><a href="' + data.blog + '">' + data.blog + "</a></span>" : ""}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="counts">
+                        <b>${data.followers}</b> followers &nbsp;·&nbsp;
+                        <b>${data.following}</b> following &nbsp;·&nbsp;
+                        <b>${data.public_repos}</b> repositories &nbsp;·&nbsp;
+                        joined ${new Date(data.created_at).toDateString()}
+                    </div>`;
+
+                loadRepos(name);
+            }
+            catch(err){
+                console.log("Error: ", err);
+                profileBox.innerHTML = "Network error";
+            }
+        }
+
+        async function loadRepos(name){
+            try{
+                const res = await fetch("https://api.github.com/users/" + name + "/repos?sort=updated&per_page=6");
+                if(!res.ok){
+                    repoBox.innerHTML = "<p class='msg'>Could not load repositories (" + res.status + ")</p>";
+                    return;
+                }
+                const repos = await res.json();
+
+                if(repos.length == 0){
+                    repoBox.innerHTML = "<p class='msg'>No public repositories</p>";
+                    return;
+                }
+
+                let html = "";
+                repos.map((r) => {
+                    html += `
+                    <div class="repo">
+                        <a href="${r.html_url}" target="_blank">${r.name}</a>
+                        <p>${r.description || "No description"}</p>
+                        <div class="lang">
+                            ${r.language || "-"} &nbsp;·&nbsp; ${r.stargazers_count} stars &nbsp;·&nbsp;
+                            updated ${new Date(r.updated_at).toLocaleDateString()}
+                        </div>
+                    </div>`;
+                })
+                repoBox.innerHTML = html;
+            }
+            catch(err){
+                console.log("Error: ", err);
+                repoBox.innerHTML = "<p class='msg'>Could not load repositories</p>";
+            }
+        }
+
+        form.addEventListener("submit", function(e){
+            e.preventDefault();
+            const name = input.value.trim();
+            if(name != ""){
+                loadProfile(name);
+            }
+        })
+
+        input.value = DEFAULT_USER;
+        loadProfile(DEFAULT_USER);
+    </script>
+</body>
+</html>
