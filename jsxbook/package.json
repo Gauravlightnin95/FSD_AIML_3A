@@ -1,0 +1,17 @@
+{
+  "name": "jsxbook",
+  "version": "1.0.0",
+  "description": "my book",
+  "license": "ISC",
+  "author": "Gaurav",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "babel": "^5.8.38",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  }
+}
